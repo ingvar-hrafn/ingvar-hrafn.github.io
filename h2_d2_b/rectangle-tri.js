@@ -10,12 +10,11 @@ window.onload = function init()
 
     //4 vertices instead of 6
     var vertices = new Float32Array([
-        -0.5, -0.25,   
-         0.5, -0.25,  
-         0.5,  0.25,   
-        -0.5,  0.25    
-    ]);
-    
+        -0.5, -0.25,
+        -0.5, 0.25,
+         0.5, -0.25,
+         0.5, 0.25
+    ]);    
 
     //  Configure WebGL
 
