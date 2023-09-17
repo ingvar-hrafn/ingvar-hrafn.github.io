@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script id="vertex-shader" type="x-shader/x-vertex">
+attribute vec4 vPosition;
+uniform float theta;
+
+void
+main()
+{
+    float s = sin( theta );
+    float c = cos( theta );
+    gl_Position = vPosition;
+}
+</script>
+
+<script id="fragment-shader" type="x-shader/x-fragment">
+precision mediump float;
+uniform vec4 rcolor;
+
+void
+main()
+{
+    gl_FragColor = rcolor;
+}
+</script>
+<style>
+    canvas {
+        border: 2px solid black;
+    }
+</style>
+
+<script type="text/javascript" src="../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+<script type="text/javascript" src="../Common/MV.js"></script>
+<script type="text/javascript" src="frogger.js"></script>
+</head>
+
+<body>
+    <div id="score">Score: 0</div>
+
+    <canvas id="gl-canvas" width="512" height="512">
+
+</body>
+</html>
