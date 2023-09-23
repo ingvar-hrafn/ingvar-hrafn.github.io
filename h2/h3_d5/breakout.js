@@ -1,117 +1,127 @@
 var canvas;
 var gl;
+var program; // Declare program at a broader scope
 
-// Núverandi staðsetning miðju ferningsins
+// Current position of the square
 var box = vec2(0.0, 0.0);
 
-// Stefna (og hraði) fernings
+// Direction (and speed) of the square
 var dX;
 var dY;
 
-// Svæðið er frá -maxX til maxX og -maxY til maxY
+// Canvas boundaries
 var maxX = 1.0;
 var maxY = 1.0;
 
-// Hálf breidd/hæð ferningsins
+// Half-width/height of the square
 var boxRad = 0.05;
 
-var mouseX;             // Old value of x-coordinate  
-var movement = false;   // Do we move the paddle?
+// Square vertices
+var vertices = new Float32Array([-boxRad, -boxRad, boxRad, -boxRad, boxRad, boxRad, -boxRad, boxRad]);
 
-var paddleVertices = [
-    vec2(-0.1, -0.9),
-    vec2(-0.1, -0.86),
-    vec2(0.1, -0.86),
-    vec2(0.1, -0.9)
-];
-
-var ballVertices = new Float32Array([-0.05, -0.05, 0.05, -0.05, 0.05, 0.05, -0.05, 0.05]);
-
-var paddleBufferId;     // Define paddleBufferId as a global variable
-var ballBufferId;       // Define ballBufferId as a global variable
+// Paddle properties
+var paddleWidth = 0.2;
+var paddleHeight = 0.03;
+var paddleX = 0.0;
 
 window.onload = function init() {
-
     canvas = document.getElementById("gl-canvas");
-
     gl = WebGLUtils.setupWebGL(canvas);
-    if (!gl) { alert("WebGL isn't available"); }
+    if (!gl) {
+        alert("WebGL isn't available");
+    }
 
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.8, 0.8, 0.8, 1.0);
 
-    // Gefa ferningnum slembistefnu í upphafi
+    // Initialize square direction and speed
     dX = Math.random() * 0.1 - 0.05;
     dY = Math.random() * 0.1 - 0.05;
 
-    //
-    //  Load shaders and initialize attribute buffers
-    //
-    var program = initShaders(gl, "vertex-shader", "fragment-shader");
+    program = initShaders(gl, "vertex-shader", "fragment-shader");
     gl.useProgram(program);
 
-    // Load the data into the GPU for the ball
-    ballBufferId = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, ballBufferId);
-    gl.bufferData(gl.ARRAY_BUFFER, ballVertices, gl.STATIC_DRAW);
+    // Load square data into the GPU
+    var bufferId = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, bufferId);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(vertices), gl.DYNAMIC_DRAW);
 
-    // Load the data into the GPU for the paddle
-    paddleBufferId = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, paddleBufferId);
-    gl.bufferData(gl.ARRAY_BUFFER, flatten(paddleVertices), gl.STATIC_DRAW);
-
+    // Associate shader variables with square data buffer
     var vPosition = gl.getAttribLocation(program, "vPosition");
     gl.vertexAttribPointer(vPosition, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(vPosition);
 
-    // Event listeners for mouse
-    canvas.addEventListener("mousedown", function (e) {
-        movement = true;
-        mouseX = e.offsetX;
-    });
+    // Get uniform locations
+    locBox = gl.getUniformLocation(program, "boxPos");
+    locColor = gl.getUniformLocation(program, "vColor");
 
-    canvas.addEventListener("mouseup", function (e) {
-        movement = false;
-    });
-
-    canvas.addEventListener("mousemove", function (e) {
-        if (movement) {
-            var xmove = 2 * (e.offsetX - mouseX) / canvas.width;
-            mouseX = e.offsetX;
-            for (i = 0; i < 4; i++) {
-                paddleVertices[i][0] += xmove;
-            }
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, paddleBufferId);
-            gl.bufferSubData(gl.ARRAY_BUFFER, 0, flatten(paddleVertices));
+    // Event listener for arrow key presses
+    window.addEventListener("keydown", function (e) {
+        switch (e.keyCode) {
+            case 37: // Left arrow key
+                paddleX -= 0.05; // Move the paddle to the left
+                break;
+            case 39: // Right arrow key
+                paddleX += 0.05; // Move the paddle to the right
+                break;
+            case 38: // Up arrow key (you can handle this for other purposes)
+                dX *= 1.1;
+                dY *= 1.1;
+                break;
+            case 40: // Down arrow key (you can handle this for other purposes)
+                dX /= 1.1;
+                dY /= 1.1;
+                break;
         }
     });
 
     render();
+};
+
+function drawPaddle() {
+    // Define vertices for the paddle
+    var paddleVertices = new Float32Array([
+        paddleX - paddleWidth / 2, -maxY, // Bottom-left
+        paddleX + paddleWidth / 2, -maxY, // Bottom-right
+        paddleX + paddleWidth / 2, -maxY + paddleHeight, // Top-right
+        paddleX - paddleWidth / 2, -maxY + paddleHeight, // Top-left
+    ]);
+
+    // Load the paddle data into the GPU
+    var paddleBufferId = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, paddleBufferId);
+    gl.bufferData(gl.ARRAY_BUFFER, flatten(paddleVertices), gl.DYNAMIC_DRAW);
+
+    // Associate shader variables with the paddle data buffer
+    var vPosition = gl.getAttribLocation(program, "vPosition");
+    gl.vertexAttribPointer(vPosition, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(vPosition);
+
+    // Set the paddle's color (for example, green)
+    gl.uniform4fv(locColor, [0.0, 1.0, 0.0, 1.0]);
+
+    // Draw the paddle
+    gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
 }
 
-
 function render() {
-    // Láta ferninginn skoppa af veggjunum
+    // Make the square bounce off the walls
     if (Math.abs(box[0] + dX) > maxX - boxRad) dX = -dX;
     if (Math.abs(box[1] + dY) > maxY - boxRad) dY = -dY;
 
-    // Uppfæra staðsetningu
+    // Update the square's position
     box[0] += dX;
     box[1] += dY;
 
     gl.clear(gl.COLOR_BUFFER_BIT);
-    
-    // Draw the ball
-    gl.bindBuffer(gl.ARRAY_BUFFER, ballBufferId); 
-    gl.bufferSubData(gl.ARRAY_BUFFER, 0, flatten(ballVertices));
+
+    // Draw the square
+    gl.uniform2fv(locBox, flatten(box));
+    gl.uniform4fv(locColor, [1.0, 0.0, 0.0, 1.0]); // Set the square's color (for example, red)
     gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
 
     // Draw the paddle
-    gl.bindBuffer(gl.ARRAY_BUFFER, paddleBufferId);
-    gl.bufferSubData(gl.ARRAY_BUFFER, 0, flatten(paddleVertices));
-    gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
-
+    drawPaddle();
 
     window.requestAnimFrame(render);
 }
